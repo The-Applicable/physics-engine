@@ -12,6 +12,7 @@ public:
     float inverseMass;
     float damping = 0.99f; 
     float restitution = 0.7f;
+    float friction = 0.5f;
 
     Shape* shape;
 

@@ -27,6 +27,7 @@ public:
     void addSphere(float x, float y, float z, float radius, float mass) {
         Sphere* sphereShape = new Sphere(radius);
         RigidBody* body = new RigidBody(sphereShape, x, y, z, mass);
+        body->friction = 0.5f;
         bodies.push_back(body);
     }
 
@@ -34,6 +35,7 @@ public:
         Box* boxShape = new Box(w, h, d);
         RigidBody* body = new RigidBody(boxShape, x, y, z, mass);
         body->restitution = 0.5f;
+        body->friction = 0.5f;
         bodies.push_back(body);
     }
 
@@ -95,7 +97,7 @@ public:
                 } else if (bodyA->shape->type == SPHERE and bodyB->shape->type == BOX) {
                     collided = CollisionDetector::checkSphereBox(bodyA, bodyB, contact);
                 }
-                
+
                 if (collided) {
                     ContactResolver::resolve(contact);
                 }
@@ -114,6 +116,12 @@ public:
         return bodies.size(); 
     }
 
+    void setFriction(float f) {
+        for (auto body : bodies) {
+            body->friction = f;
+        }
+    }
+
 };
 
 EMSCRIPTEN_BINDINGS(applicable_physics_engine) {
@@ -124,6 +132,7 @@ EMSCRIPTEN_BINDINGS(applicable_physics_engine) {
         .function("setGravity", &PhysicsWorld::setGravity)
         .function("setRestitution", &PhysicsWorld::setRestitution)
         .function("step", &PhysicsWorld::step)
+        .function("setFriction", &PhysicsWorld::setFriction)
         .function("reset", &PhysicsWorld::reset)
         .function("getBodyCount", &PhysicsWorld::getBodyCount)
         .function("getBodyPosition", &PhysicsWorld::getBodyPosition);

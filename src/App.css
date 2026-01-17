@@ -1,165 +1,188 @@
-#root {
-  max-width: none;
+:root {
+  --bg-dark: #111111;
+  --bg-panel: rgba(30, 30, 30, 0.85);
+  --accent: #646cff;
+  --text-main: #ffffff;
+  --text-muted: #aaaaaa;
+  --border: #333;
+}
+
+body, html {
   margin: 0;
   padding: 0;
-  text-align: left;
-  width: 100%;
-  height: 100%;
-}
-
-.app-container {
-  display: flex;
   width: 100vw;
   height: 100vh;
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  font-family: 'Inter', system-ui, sans-serif;
   overflow: hidden;
-  transition: background-color 0.3s, color 0.3s;
 }
 
-.sidebar {
-  width: 300px;
-  padding: 20px;
+.app-layout {
   display: flex;
-  flex-direction: column;
-  gap: 15px;
-  overflow-y: auto;
-  box-shadow: 2px 0 5px rgba(0,0,0,0.1);
-  z-index: 10;
-}
-
-.canvas-container {
-  flex: 1;
-  position: relative;
-  width: 100%;
-  height: 100%;
-}
-
-.control-group {
-  margin-bottom: 10px;
-}
-
-.control-group label {
-  display: block;
-  margin-bottom: 5px;
-  font-weight: bold;
-}
-
-.control-group input {
-  width: 100%;
-}
-
-/* Modal Styles */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: rgba(0, 0, 0, 0.5);
+}
+
+/* Viewport */
+.viewport {
+  flex-grow: 1;
+  position: relative;
+}
+
+.loader {
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 1000;
+  height: 100vh;
+  font-size: 1.5rem;
+  color: var(--accent);
 }
 
-.modal-content {
-  background-color: #fff;
-  padding: 20px;
-  border-radius: 8px;
-  width: 90%;
-  max-width: 600px;
-  max-height: 80vh;
-  overflow-y: auto;
-  position: relative;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-}
-
-.modal-content .close-btn {
+.stats-overlay {
   position: absolute;
-  top: 10px;
-  right: 10px;
-  background: transparent;
-  border: none;
-  font-size: 1.2rem;
-  cursor: pointer;
-  color: inherit;
-}
-
-.roadmap-list {
-  margin-top: 20px;
-}
-
-.roadmap-item {
+  top: 20px;
+  left: 20px;
+  background: rgba(0,0,0,0.5);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.8rem;
   display: flex;
-  align-items: flex-start;
   gap: 15px;
-  padding: 10px 0;
-  border-bottom: 1px solid rgba(0,0,0,0.1);
+  backdrop-filter: blur(4px);
+  pointer-events: none;
 }
 
-.roadmap-item input[type="checkbox"] {
-  width: 20px;
-  height: 20px;
-  margin-top: 5px;
+/* Sidebar */
+.sidebar {
+  width: 320px;
+  background: var(--bg-panel);
+  backdrop-filter: blur(10px);
+  border-left: 1px solid var(--border);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  z-index: 10;
+  box-shadow: -4px 0 20px rgba(0,0,0,0.3);
+}
+
+.sidebar-header h2 {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.sidebar-header p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* Controls */
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.control-group label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+input[type=range] {
+  width: 100%;
+  accent-color: var(--accent);
   cursor: pointer;
 }
 
-.roadmap-item p {
-  margin: 5px 0 0 0;
-  font-size: 0.9rem;
-  opacity: 0.8;
+hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  width: 100%;
 }
 
-/* Light Theme */
-.app-container.light {
-  background-color: #ffffff;
-  color: #333333;
-}
-.app-container.light .sidebar {
-  background-color: #f5f5f5;
-  border-right: 1px solid #e0e0e0;
-}
-.app-container.light button {
-  background-color: #e0e0e0;
-  color: #333;
-}
-.modal-content.light {
-  background-color: #ffffff;
-  color: #333333;
+/* Texture Grid */
+.texture-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
 }
 
-/* Dark Theme */
-.app-container.dark {
-  background-color: #121212;
-  color: #e0e0e0;
+.texture-btn {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-size: cover;
+  background-position: center;
+  cursor: pointer;
+  transition: all 0.2s;
 }
-.app-container.dark .sidebar {
-  background-color: #1e1e1e;
-  border-right: 1px solid #333;
+
+.texture-btn:hover {
+  transform: scale(1.05);
 }
-.app-container.dark button {
-  background-color: #333;
-  color: #fff;
+
+.texture-btn.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 10px rgba(100, 108, 255, 0.4);
 }
-.modal-content.dark {
-  background-color: #1e1e1e;
-  color: #e0e0e0;
+
+/* Buttons */
+.action-buttons {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.spawn-btn {
+  background: #2a2a2a;
   border: 1px solid #333;
-}
-.modal-content.dark .roadmap-item {
-  border-bottom-color: rgba(255,255,255,0.1);
+  color: white;
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: background 0.2s;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .app-container {
-    flex-direction: column;
-  }
-  .sidebar {
-    width: 100%;
-    height: auto;
-    max-height: 300px;
-    border-right: none;
-    border-bottom: 1px solid rgba(0,0,0,0.1);
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-  }
+.spawn-btn:hover {
+  background: #333;
+}
+
+.row-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.toggle-btn, .clear-btn {
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.toggle-btn {
+  background: var(--accent);
+  color: white;
+}
+
+.toggle-btn.active {
+  background: #e6a23c; /* Orange for pause */
+}
+
+.clear-btn {
+  background: #ff4757;
+  color: white;
 }

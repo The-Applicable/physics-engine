@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Sphere, Box, Plane, OrbitControls, useTexture, Environment } from "@react-three/drei";
+import { Sphere, Box, Plane, OrbitControls, useTexture, Environment, Html } from "@react-three/drei";
 import * as THREE from "three";
 import "./App.css";
 
@@ -16,6 +16,7 @@ interface PhysicsWorldInstance {
   getBodyCount(): number;
   setGravity(g: number): void;
   setRestitution(r: number): void;
+  setFriction(f: number): void; // Ensure C++ has this exposed!
   reset(): void;
   delete(): void;
 }
@@ -28,48 +29,43 @@ declare global {
   interface Window { createPhysicsModule: () => Promise<PhysicsModule>; }
 }
 
-// Visual Object Definition
+type TextureType = 'wood' | 'metal' | 'bricks' | 'grid';
+
 type SimulationObject = 
-  | { id: number; type: 'sphere'; radius: number }
-  | { id: number; type: 'box'; size: [number, number, number] };
+  | { id: number; type: 'sphere'; size: [number]; textureId: TextureType }
+  | { id: number; type: 'box'; size: [number, number, number]; textureId: TextureType };
 
 let physicsModule: PhysicsModule | null = null;
 
-// --- Texture Components ---
+// --- Texture Definitions ---
+const TEXTURES = {
+    wood: 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/crate.gif',
+    metal: 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_atmos_2048.jpg', // Using earth as metal placeholder for cool effect
+    bricks: 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/brick_diffuse.jpg',
+    grid: 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/uv_grid_opengl.jpg'
+};
 
-const TextureManager = () => {
-    // Preload textures to avoid pop-in
-    useTexture.preload('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/crate.gif');
-    useTexture.preload('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/uv_grid_opengl.jpg');
-    useTexture.preload('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/hardwood2_diffuse.jpg');
-    return null;
-}
-
-// --- The Simulation Component ---
+// --- Scene Component (Handles Rendering) ---
 const PhysicsScene = ({ 
   objects, 
   gravity, 
   restitution, 
+  friction,
   simulationRunning 
 }: { 
   objects: SimulationObject[], 
   gravity: number, 
   restitution: number,
+  friction: number,
   simulationRunning: boolean
 }) => {
   const worldRef = useRef<PhysicsWorldInstance | null>(null);
   const meshRefs = useRef<(THREE.Mesh | null)[]>([]);
 
-  // Load Textures
-  const crateTexture = useTexture('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/crate.gif');
-  const sphereTexture = useTexture('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/uv_grid_opengl.jpg');
-  const floorTexture = useTexture('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/hardwood2_diffuse.jpg');
+  // Load all textures upfront
+  const maps = useTexture(TEXTURES);
 
-  // Configure textures
-  floorTexture.wrapS = floorTexture.wrapT = THREE.RepeatWrapping;
-  floorTexture.repeat.set(10, 10);
-
-  // 1. Initialize Physics World
+  // Initialize Physics
   useEffect(() => {
     if (physicsModule && !worldRef.current) {
       worldRef.current = new physicsModule.PhysicsWorld();
@@ -80,50 +76,54 @@ const PhysicsScene = ({
     };
   }, []);
 
-  // 2. Sync Props
+  // Sync Physics Parameters
   useEffect(() => {
     if (worldRef.current) {
       worldRef.current.setGravity(gravity);
       worldRef.current.setRestitution(restitution);
+      worldRef.current.setFriction(friction);
     }
-  }, [gravity, restitution]);
+  }, [gravity, restitution, friction]);
 
-  // 3. Sync Objects
+  // Sync Object Spawning
   useEffect(() => {
     if (!worldRef.current) return;
-    
     const world = worldRef.current;
-    const currentCount = world.getBodyCount();
     
-    if (objects.length === 0 && currentCount > 0) {
+    // Check for Reset
+    if (objects.length === 0 && world.getBodyCount() > 0) {
         world.reset();
         return;
     }
 
+    // Add new objects
+    const currentCount = world.getBodyCount();
     for (let i = currentCount; i < objects.length; i++) {
       const obj = objects[i];
-      const startX = (Math.random() - 0.5) * 5;
-      const startZ = (Math.random() - 0.5) * 5;
-      const startY = 8 + (i * 1.5); 
+      // Randomize spawn position slightly to avoid perfect stacking
+      const x = (Math.random() - 0.5) * 2;
+      const z = (Math.random() - 0.5) * 2;
+      const y = 5 + (i * 2);
 
       if (obj.type === 'sphere') {
-        world.addSphere(startX, startY, startZ, obj.radius, 1.0);
-      } else if (obj.type === 'box') {
-        world.addBox(startX, startY, startZ, obj.size[0], obj.size[1], obj.size[2], 1.0);
+        world.addSphere(x, y, z, obj.size[0], 1.0);
+      } else {
+        world.addBox(x, y, z, obj.size[0], obj.size[1], obj.size[2], 1.0);
       }
     }
   }, [objects]);
 
-  // 4. Loop
+  // Animation Loop
   useFrame((_, delta) => {
     if (!worldRef.current || !simulationRunning) return;
 
+    // Run Physics Step
     worldRef.current.step(Math.min(delta, 0.1));
 
+    // Sync Meshes
     for (let i = 0; i < objects.length; i++) {
       const bodyData = worldRef.current.getBodyPosition(i);
       const mesh = meshRefs.current[i];
-      
       if (bodyData && mesh) {
         mesh.position.set(bodyData.pos.x, bodyData.pos.y, bodyData.pos.z);
       }
@@ -132,46 +132,53 @@ const PhysicsScene = ({
 
   return (
     <>
-      <TextureManager />
-      {objects.map((obj, i) => (
-        obj.type === 'sphere' ? (
-          <Sphere 
-            key={obj.id} 
-            ref={(el) => (meshRefs.current[i] = el)} 
-            args={[obj.radius, 32, 32]} 
-            castShadow
-          >
-            <meshStandardMaterial map={sphereTexture} roughness={0.1} metalness={0.2} />
-          </Sphere>
-        ) : (
-          <Box 
-            key={obj.id} 
-            ref={(el) => (meshRefs.current[i] = el)} 
-            args={obj.size} 
-            castShadow
-          >
-            <meshStandardMaterial map={crateTexture} />
-          </Box>
-        )
-      ))}
-      
-      {/* Floor with Wood Texture */}
-      <Plane args={[50, 50]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <meshStandardMaterial map={floorTexture} roughness={0.8} />
+      {objects.map((obj, i) => {
+          const textureMap = maps[obj.textureId];
+          return obj.type === 'sphere' ? (
+            <Sphere 
+                key={obj.id} 
+                ref={(el) => { meshRefs.current[i] = el; }} 
+                args={[obj.size[0], 32, 32]} 
+                castShadow
+            >
+                <meshStandardMaterial map={textureMap} roughness={0.2} metalness={0.1} />
+            </Sphere>
+          ) : (
+            <Box 
+                key={obj.id} 
+                ref={(el) => { meshRefs.current[i] = el; }} 
+                args={obj.size} 
+                castShadow
+            >
+                <meshStandardMaterial map={textureMap} />
+            </Box>
+          );
+      })}
+
+      {/* Floor */}
+      <Plane args={[100, 100]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow position={[0, -0.01, 0]}>
+        <meshStandardMaterial color="#1a1a1a" roughness={0.8} />
+        <gridHelper args={[100, 50, 0x444444, 0x222222]} rotation={[-Math.PI/2, 0, 0]} />
       </Plane>
     </>
   );
 };
 
-// --- Main App Component ---
+// --- Main Application ---
 function App() {
   const [ready, setReady] = useState(false);
   const [objects, setObjects] = useState<SimulationObject[]>([]);
   
+  // Physics State
   const [gravity, setGravity] = useState(-9.81);
-  const [restitution, setRestitution] = useState(0.7);
+  const [restitution, setRestitution] = useState(0.6);
+  const [friction, setFriction] = useState(0.5);
   const [isRunning, setIsRunning] = useState(true);
 
+  // UI State
+  const [selectedTexture, setSelectedTexture] = useState<TextureType>('wood');
+
+  // Load Wasm
   useEffect(() => {
     const script = document.createElement("script");
     script.src = "/wasm/physics.js";
@@ -185,79 +192,124 @@ function App() {
     document.body.appendChild(script);
   }, []);
 
-  const spawnSphere = () => {
-    setObjects(prev => [...prev, { id: Date.now(), type: 'sphere', radius: 0.5 + Math.random()*0.3 }]);
+  const spawn = (type: 'sphere' | 'box') => {
+      const newObj: SimulationObject = type === 'sphere' 
+        ? { id: Date.now(), type: 'sphere', size: [0.6], textureId: selectedTexture }
+        : { id: Date.now(), type: 'box', size: [1, 1, 1], textureId: selectedTexture };
+
+      setObjects(prev => [...prev, newObj]);
   };
 
-  const spawnBox = () => {
-    setObjects(prev => [...prev, { id: Date.now(), type: 'box', size: [1, 1, 1] }]);
-  };
-
-  const clearAll = () => setObjects([]);
-
-  if (!ready) return <div className="loading">Initializing Engine...</div>;
+  if (!ready) return <div className="loader">Loading Physics Engine...</div>;
 
   return (
-    <div className="app-container">
-      <div className="sidebar">
-        <h3>Physics Engine</h3>
-        
-        <div className="section">
-          <label>Gravity ({gravity})</label>
-          <input 
-            type="range" min="-20" max="0" step="0.1" 
-            value={gravity} 
-            onChange={(e) => setGravity(parseFloat(e.target.value))} 
-          />
-        </div>
-
-        <div className="section">
-          <label>Bounciness ({restitution})</label>
-          <input 
-            type="range" min="0" max="1.5" step="0.1" 
-            value={restitution} 
-            onChange={(e) => setRestitution(parseFloat(e.target.value))} 
-          />
-        </div>
-
-        <div className="section actions">
-            <button onClick={spawnSphere}>Spawn Sphere ⚪</button>
-            <button onClick={spawnBox}>Spawn Crate 📦</button>
-            <button className="danger" onClick={clearAll}>Clear All 🗑️</button>
-            <button onClick={() => setIsRunning(!isRunning)}>
-                {isRunning ? "Pause ⏸️" : "Resume ▶️"}
-            </button>
-        </div>
-        
-        <div className="stats">
-            Entities: {objects.length}
-        </div>
-      </div>
-
-      <div className="canvas-container">
-        <Canvas shadows camera={{ position: [8, 8, 12], fov: 45 }}>
-            {/* Realistic Lighting Setup */}
-            <ambientLight intensity={0.5} />
+    <div className="app-layout">
+      {/* 3D Viewport */}
+      <div className="viewport">
+          <Canvas shadows camera={{ position: [8, 6, 8], fov: 45 }}>
+            <color attach="background" args={['#111']} />
+            <fog attach="fog" args={['#111', 10, 40]} />
+            
+            <ambientLight intensity={0.4} />
             <spotLight 
-                position={[15, 20, 10]} 
-                angle={0.3} 
+                position={[10, 20, 10]} 
+                angle={0.25} 
                 penumbra={1} 
-                intensity={2} 
+                intensity={1.5} 
                 castShadow 
-                shadow-mapSize={[2048, 2048]}
+                shadow-mapSize={[2048, 2048]} 
             />
-            <Environment preset="sunset" />
+            <Environment preset="city" />
             <OrbitControls />
-          
-            <Suspense fallback={null}>
+
+            <Suspense fallback={<Html center>Loading Textures...</Html>}>
                 <PhysicsScene 
-                    objects={objects} 
-                    gravity={gravity} 
+                    objects={objects}
+                    gravity={gravity}
                     restitution={restitution}
+                    friction={friction}
                     simulationRunning={isRunning}
                 />
             </Suspense>
-        </Canvas>
+          </Canvas>
+
+          {/* Overlay Stats */}
+          <div className="stats-overlay">
+              <span>{objects.length} Objects</span>
+              <span>{isRunning ? 'Running' : 'Paused'}</span>
+          </div>
+      </div>
+
+      {/* Control Sidebar */}
+      <div className="sidebar">
+        <div className="sidebar-header">
+            <h2>⚛️ PhysX Engine</h2>
+            <p>Interactive WASM Playground</p>
+        </div>
+
+        <div className="control-group">
+            <label>Gravity ({gravity.toFixed(1)})</label>
+            <input 
+                type="range" min="-20" max="0" step="0.1" 
+                value={gravity} 
+                onChange={e => setGravity(Number(e.target.value))} 
+            />
+        </div>
+
+        <div className="control-group">
+            <label>Bounciness ({restitution.toFixed(1)})</label>
+            <input 
+                type="range" min="0" max="1.5" step="0.1" 
+                value={restitution} 
+                onChange={e => setRestitution(Number(e.target.value))} 
+            />
+        </div>
+
+        <div className="control-group">
+            <label>Friction ({friction.toFixed(1)})</label>
+            <input 
+                type="range" min="0" max="1" step="0.1" 
+                value={friction} 
+                onChange={e => setFriction(Number(e.target.value))} 
+            />
+        </div>
+
+        <hr />
+
+        <div className="control-group">
+            <label>Texture</label>
+            <div className="texture-grid">
+                {(Object.keys(TEXTURES) as TextureType[]).map(tex => (
+                    <button 
+                        key={tex}
+                        className={`texture-btn ${selectedTexture === tex ? 'active' : ''}`}
+                        onClick={() => setSelectedTexture(tex)}
+                        style={{ backgroundImage: `url(${TEXTURES[tex]})` }}
+                    />
+                ))}
+            </div>
+        </div>
+
+        <div className="action-buttons">
+            <button className="spawn-btn" onClick={() => spawn('sphere')}>
+                <span>⚪</span> Spawn Sphere
+            </button>
+            <button className="spawn-btn" onClick={() => spawn('box')}>
+                <span>📦</span> Spawn Box
+            </button>
+            
+            <div className="row-btns">
+                <button 
+                    className={`toggle-btn ${isRunning ? 'active' : ''}`} 
+                    onClick={() => setIsRunning(!isRunning)}
+                >
+                    {isRunning ? "Pause" : "Resume"}
+                </button>
+                <button className="clear-btn" onClick={() => setObjects([])}>
+                    Clear
+                </button>
+            </div>
+        </div>
       </div>
     </div>
   );

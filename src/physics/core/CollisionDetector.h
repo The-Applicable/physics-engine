@@ -104,36 +104,27 @@ class CollisionDetector {
     Sphere* sphere = (Sphere*)sphereBody->shape;
     Box* box = (Box*)boxBody->shape;
 
-    Vector3 closestPoint;
-    Vector3 spherePos = sphereBody->position;
+    Vector3 center = sphereBody->position;
     Vector3 boxPos = boxBody->position;
 
-    // Find the closest point on the box to the sphere center
-    closestPoint.x =
-        std::max(boxPos.x - box->halfExtents.x,
-                 std::min(spherePos.x, boxPos.x + box->halfExtents.x));
-    closestPoint.y =
-        std::max(boxPos.y - box->halfExtents.y,
-                 std::min(spherePos.y, boxPos.y + box->halfExtents.y));
-    closestPoint.z =
-        std::max(boxPos.z - box->halfExtents.z,
-                 std::min(spherePos.z, boxPos.z + box->halfExtents.z));
+    Vector3 relCenter = center - boxPos;
 
-    Vector3 direction = spherePos - closestPoint;
-    float distanceSquared = direction.magnitudeSquared();
+    Vector3 closestPoint;
+    closestPoint.x = std::max(-box->halfExtents.x,
+                              std::min(relCenter.x, box->halfExtents.x));
+    closestPoint.y = std::max(-box->halfExtents.y,
+                              std::min(relCenter.y, box->halfExtents.y));
+    closestPoint.z = std::max(-box->halfExtents.z,
+                              std::min(relCenter.z, box->halfExtents.z));
 
-    if (distanceSquared <= sphere->radius * sphere->radius) {
+    Vector3 distVec = relCenter - closestPoint;
+    float distance = distVec.magnitude();
+
+    if (distance < sphere->radius && distance > 0) {
       contact.a = sphereBody;
       contact.b = boxBody;
-
-      float distance = std::sqrt(distanceSquared);
-      if (distance > 0) {
-        contact.normal = direction * (1.0f / distance);
-        contact.penetration = sphere->radius - distance;
-      } else {
-        contact.normal = Vector3(0, 1, 0);
-        contact.penetration = sphere->radius;
-      }
+      contact.penetration = sphere->radius - distance;
+      contact.normal = distVec * (1.0f / distance);
 
       return true;
     }
@@ -144,7 +135,6 @@ class CollisionDetector {
                              Contact& contact) {
     bool result = checkSphereBox(sphereBody, boxBody, contact);
     if (result) {
-      // Swap bodies and flip normal
       contact.a = boxBody;
       contact.b = sphereBody;
       contact.normal = contact.normal * -1.0f;
