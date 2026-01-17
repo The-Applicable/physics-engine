@@ -1,24 +1,41 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Box, Plane, useTexture, OrbitControls } from "@react-three/drei";
+import { Sphere, Plane, useTexture, OrbitControls } from "@react-three/drei"; // Changed Box to Sphere
 import { Mesh } from "three";
 import "./App.css";
 
+// 1. Update Types to match C++ Phase 2 API
 interface Vector3 {
   x: number;
   y: number;
   z: number;
 }
 
+interface BodyData {
+  pos: Vector3;
+  // We will add 'rot' (quaternion) here later
+}
+
 interface PhysicsWorldInstance {
-  addParticle(x: number, y: number, z: number): void;
+  // Old: addParticle(x, y, z)
+  // New: addSphere(x, y, z, radius, mass)
+  addSphere(x: number, y: number, z: number, radius: number, mass: number): void;
+  
   step(dt: number): void;
-  getParticlePosition(index: number): Vector3 | null;
-  getParticleCount(): number;
+  
+  // Old: getParticlePosition
+  // New: getBodyPosition returns nested object { pos: {x,y,z} }
+  getBodyPosition(index: number): BodyData | null;
+  
+  getBodyCount(): number;
+  
   delete(): void;
-  setGravity(g: number): void;
-  setRestitution(r: number): void;
-  reset(): void;
+  
+  // These are temporarily removed in C++ Phase 2. 
+  // We will re-add them in Phase 4.
+  // setGravity(g: number): void;
+  // setRestitution(r: number): void;
+  // reset(): void;
 }
 
 interface PhysicsModule {
@@ -52,16 +69,27 @@ const API_BASE_URL = "https://applicable-v1-backend-671108073568.europe-west1.ru
 
 const Simulation = ({ gravity, restitution, resetTrigger }: SimulationProps) => {
   const worldRef = useRef<PhysicsWorldInstance | null>(null);
-  const boxRef = useRef<Mesh>(null);
+  const meshRef = useRef<Mesh>(null);
 
   useEffect(() => {
     if (physicsModule && !worldRef.current) {
       const world = new physicsModule.PhysicsWorld();
-      world.addParticle(0, 10, 0);
+      // Add a Sphere: x=0, y=10, z=0, radius=0.5, mass=1.0
+      world.addSphere(0, 10, 0, 0.5, 1.0);
       worldRef.current = world;
+    }
+
+    // Cleanup when component unmounts
+    return () => {
+        if (worldRef.current) {
+            worldRef.current.delete();
+            worldRef.current = null;
+        }
     }
   }, []);
 
+  /* TODO: Re-enable these in Phase 4 when we add setters back to C++
+     
   useEffect(() => {
     if (worldRef.current) {
       worldRef.current.setGravity(gravity);
@@ -72,28 +100,33 @@ const Simulation = ({ gravity, restitution, resetTrigger }: SimulationProps) => 
   useEffect(() => {
     if (worldRef.current && resetTrigger > 0) {
       worldRef.current.reset();
-      worldRef.current.addParticle(0, 10, 0);
+      worldRef.current.addSphere(0, 10, 0, 0.5, 1.0);
     }
   }, [resetTrigger]);
+  */
 
   useFrame((_, delta) => {
-    if (worldRef.current && boxRef.current) {
+    if (worldRef.current && meshRef.current) {
       worldRef.current.step(Math.min(delta, 0.1));
 
-      const pos = worldRef.current.getParticlePosition(0);
-      if (pos) {
-        boxRef.current.position.set(pos.x, pos.y, pos.z);
+      // New Data Structure: { pos: {x, y, z} }
+      const data = worldRef.current.getBodyPosition(0);
+      if (data) {
+        meshRef.current.position.set(data.pos.x, data.pos.y, data.pos.z);
       }
     }
   });
 
+  // Use a different texture or color for the sphere
   const texture = useTexture('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/crate.gif');
 
   return (
     <>
-      <Box ref={boxRef} args={[1, 1, 1]} position={[0, 10, 0]} castShadow>
+      {/* Changed Box to Sphere to match Physics */}
+      <Sphere ref={meshRef} args={[0.5, 32, 32]} position={[0, 10, 0]} castShadow>
         <meshStandardMaterial map={texture} />
-      </Box>
+      </Sphere>
+      
       <Plane args={[20, 20]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <meshStandardMaterial color="gray" />
       </Plane>
@@ -104,12 +137,14 @@ const Simulation = ({ gravity, restitution, resetTrigger }: SimulationProps) => 
 function App() {
   const [ready, setReady] = useState(false);
   
+  // Controls state (Temporarily visual only until Phase 4)
   const [gravity, setGravity] = useState(-9.81);
   const [restitution, setRestitution] = useState(0.5);
   const [resetTrigger, setResetTrigger] = useState(0);
   
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
 
+  // Lighting State
   const [ambientIntensity, setAmbientIntensity] = useState(0.3);
   const [spotIntensity, setSpotIntensity] = useState(2);
   const [spotAngle, setSpotAngle] = useState(0.5);
@@ -194,15 +229,18 @@ function App() {
         </button>
 
         <h4>Physics</h4>
-        <div className="control-group">
+        <div style={{fontSize: '0.8rem', color: '#888', marginBottom: '10px'}}>
+            *Controls paused during architecture upgrade
+        </div>
+        <div className="control-group disabled">
           <label>Gravity: {gravity}</label>
-          <input type="range" min="-20" max="0" step="0.1" value={gravity} onChange={(e) => setGravity(parseFloat(e.target.value))} />
+          <input disabled type="range" min="-20" max="0" step="0.1" value={gravity} onChange={(e) => setGravity(parseFloat(e.target.value))} />
         </div>
-        <div className="control-group">
+        <div className="control-group disabled">
           <label>Bounciness: {restitution}</label>
-          <input type="range" min="0" max="2" step="0.1" value={restitution} onChange={(e) => setRestitution(parseFloat(e.target.value))} />
+          <input disabled type="range" min="0" max="2" step="0.1" value={restitution} onChange={(e) => setRestitution(parseFloat(e.target.value))} />
         </div>
-        <button onClick={() => setResetTrigger((n) => n + 1)} style={{ padding: "10px", cursor: "pointer", marginTop: "10px", width: "100%" }}>
+        <button disabled onClick={() => setResetTrigger((n) => n + 1)} style={{ padding: "10px", marginTop: "10px", width: "100%", opacity: 0.5 }}>
           Reset Box
         </button>
         
@@ -211,6 +249,7 @@ function App() {
         </button>
 
         <h4>Lighting</h4>
+        {/* Lighting controls remain active */}
         <div className="control-group">
           <label>
             <input type="checkbox" checked={castShadows} onChange={(e) => setCastShadows(e.target.checked)} /> Cast Shadows
@@ -221,24 +260,25 @@ function App() {
           <input type="range" min="0" max="2" step="0.1" value={ambientIntensity} onChange={(e) => setAmbientIntensity(parseFloat(e.target.value))} />
         </div>
 
+        {/* ... (Rest of lighting controls remain same) ... */}
         <h4>Spot Light</h4>
         <div className="control-group">
           <label>Intensity: {spotIntensity}</label>
           <input type="range" min="0" max="10" step="0.1" value={spotIntensity} onChange={(e) => setSpotIntensity(parseFloat(e.target.value))} />
         </div>
         <div className="control-group">
-          <label>Angle: {spotAngle}</label>
-          <input type="range" min="0" max="1.5" step="0.1" value={spotAngle} onChange={(e) => setSpotAngle(parseFloat(e.target.value))} />
+            <label>Angle: {spotAngle}</label>
+            <input type="range" min="0" max="1.5" step="0.1" value={spotAngle} onChange={(e) => setSpotAngle(parseFloat(e.target.value))} />
         </div>
         <div className="control-group">
-          <label>Penumbra: {spotPenumbra}</label>
-          <input type="range" min="0" max="1" step="0.1" value={spotPenumbra} onChange={(e) => setSpotPenumbra(parseFloat(e.target.value))} />
+            <label>Penumbra: {spotPenumbra}</label>
+            <input type="range" min="0" max="1" step="0.1" value={spotPenumbra} onChange={(e) => setSpotPenumbra(parseFloat(e.target.value))} />
         </div>
         <div className="control-group">
           <label>Pos X: {spotPos[0]}</label>
           <input type="range" min="-20" max="20" step="1" value={spotPos[0]} onChange={(e) => setSpotPos([parseFloat(e.target.value), spotPos[1], spotPos[2]])} />
         </div>
-        <div className="control-group">
+         <div className="control-group">
           <label>Pos Y: {spotPos[1]}</label>
           <input type="range" min="0" max="30" step="1" value={spotPos[1]} onChange={(e) => setSpotPos([spotPos[0], parseFloat(e.target.value), spotPos[2]])} />
         </div>
@@ -246,7 +286,7 @@ function App() {
           <label>Pos Z: {spotPos[2]}</label>
           <input type="range" min="-20" max="20" step="1" value={spotPos[2]} onChange={(e) => setSpotPos([spotPos[0], spotPos[1], parseFloat(e.target.value)])} />
         </div>
-
+        
         <h4>Directional Light</h4>
         <div className="control-group">
           <label>Intensity: {dirIntensity}</label>
@@ -264,6 +304,7 @@ function App() {
           <label>Pos Z: {dirPos[2]}</label>
           <input type="range" min="-20" max="20" step="1" value={dirPos[2]} onChange={(e) => setDirPos([dirPos[0], dirPos[1], parseFloat(e.target.value)])} />
         </div>
+
       </div>
       
       <div className="canvas-container">
