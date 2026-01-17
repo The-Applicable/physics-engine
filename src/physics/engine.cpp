@@ -1,101 +1,107 @@
 #include <emscripten/bind.h>
 #include <emscripten/emscripten.h>
 #include <vector>
+#include "core/Vector3.h"
+#include "core/RigidBody.h"
+#include "geometry/Sphere.h"
+#include "core/CollisionDetector.h"
+#include "core/ContactResolver.h"
+#include "geometry/Box.h"
 
 using namespace emscripten;
 
-struct Vector3 {
-    float x;
-    float y;
-    float z;
-};
-
-class Particle {
-public:
-    Vector3 position;
-    Vector3 velocity;
-
-    Particle(float x, float y, float z) {
-        this->position.x = x;
-        this->position.y = y;
-        this->position.z = z;
-
-        this->velocity.x = 0;
-        this->velocity.y = 0;
-        this->velocity.z = 0;
-    }
-
-    val getPosition() const {
-        val obj = val::object();
-        obj.set("x", position.x);
-        obj.set("y", position.y);
-        obj.set("z", position.z);
-        return obj;
-    }
-};
-
 class PhysicsWorld {
-    std::vector<Particle> particles;
-    float gravity = -9.81;
-    float restitution = 0.5;
-
+    std::vector<RigidBody*> bodies;
+    Vector3 gravity = Vector3(0, -9.81f, 0);
+   
 public:
     PhysicsWorld() {}
 
-    void setGravity(float g) {
-        gravity = g;
+    ~PhysicsWorld() {
+        for (auto body : bodies) {
+            delete body->shape;
+            delete body;
+        }
+    }
+
+    void addSphere(float x, float y, float z, float radius, float mass) {
+        Sphere* sphereShape = new Sphere(radius);
+        RigidBody* body = new RigidBody(sphereShape, x, y, z, mass);
+        bodies.push_back(body);
+    }
+
+    void addBox(float x, float y, float z, float w, float h, float d, float mass) {
+        Box* boxShape = new Box(w, h, d);
+        RigidBody* body = new RigidBody(boxShape, x, y, z, mass);
+        body->restitution = 0.5f;
+        bodies.push_back(body);
+    }
+
+    void setGravity(float gy) {
+        gravity.y = gy;
     }
 
     void setRestitution(float r) {
-        restitution = r;
+        for (auto body : bodies) {
+            body->restitution = r;
+        }
     }
 
     void reset() {
-        particles.clear();
-    }
-
-    void addParticle(float x, float y, float z) {
-        particles.push_back(Particle(x, y, z));
+        for (auto body : bodies) {
+            delete body->shape;
+            delete body;
+        }
+        bodies.clear();
     }
 
     void step(float dt) {
-        for (auto &particle : particles) {
-            // NOTE: this is a simple semi-implicit euler integration
-            particle.velocity.y += gravity * dt;
+        for (auto body : bodies) {
+            if (body->hasFiniteMass()) {
+                body->velocity += gravity * dt;
+            }
 
-            particle.position.x += particle.velocity.x * dt;
-            particle.position.y += particle.velocity.y * dt;
-            particle.position.z += particle.velocity.z * dt;
-            
-            // NOTE: velocity going less than zero is just floor collision.
-            // Assuming the particle represents a cube of height 1, half-height is 0.5
-            if (particle.position.y < 0.5) {
-                particle.position.y = 0.5;
-                particle.velocity.y *= -restitution;
+            body->integrate(dt);
+        }
+
+        for (auto body : bodies) {
+            Contact contact;
+            bool collided = false;
+
+            if (body->shape->type == SPHERE) {
+                collided = CollisionDetector::checkSpherePlane(body, 0.0f, contact);
+            } else if (body->shape->type == BOX) {
+                collided = CollisionDetector::checkBoxPlane(body, 0.0f, contact);
+            }
+
+            if (collided) {
+                ContactResolver::resolve(contact);
             }
         }
     }
 
-    val getParticlePosition(int index) {
-        if (index >= 0 and index < particles.size()) {
-            return particles[index].getPosition();
+    val getBodyPosition(int index) {
+        if (index >= 0 and index < bodies.size()) {
+            return bodies[index]->toJs();
         }
         return val::null();
     }
 
-    int getParticleCount() {
-        return particles.size();
+    int getBodyCount() {
+        return bodies.size(); 
     }
+
 };
 
 EMSCRIPTEN_BINDINGS(applicable_physics_engine) {
     class_<PhysicsWorld>("PhysicsWorld")
         .constructor<>()
+        .function("addSphere", &PhysicsWorld::addSphere)
+        .function("addBox", &PhysicsWorld::addBox)
         .function("setGravity", &PhysicsWorld::setGravity)
         .function("setRestitution", &PhysicsWorld::setRestitution)
-        .function("reset", &PhysicsWorld::reset)
-        .function("addParticle", &PhysicsWorld::addParticle)
         .function("step", &PhysicsWorld::step)
-        .function("getParticlePosition", &PhysicsWorld::getParticlePosition)
-        .function("getParticleCount", &PhysicsWorld::getParticleCount);
+        .function("reset", &PhysicsWorld::reset)
+        .function("getBodyCount", &PhysicsWorld::getBodyCount)
+        .function("getBodyPosition", &PhysicsWorld::getBodyPosition);
 }
