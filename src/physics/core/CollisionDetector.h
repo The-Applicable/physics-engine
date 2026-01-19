@@ -29,16 +29,51 @@ public:
     static bool checkBoxPlane(RigidBody* boxBody, float planeY, Contact& contact)
     {
         Box* box = (Box*)boxBody->shape;
+        
+        Vector3 corners[8] = {
+            Vector3(box->halfExtents.x, box->halfExtents.y, box->halfExtents.z),
+            Vector3(-box->halfExtents.x, box->halfExtents.y, box->halfExtents.z),
+            Vector3(box->halfExtents.x, -box->halfExtents.y, box->halfExtents.z),
+            Vector3(-box->halfExtents.x, -box->halfExtents.y, box->halfExtents.z),
+            Vector3(box->halfExtents.x, box->halfExtents.y, -box->halfExtents.z),
+            Vector3(-box->halfExtents.x, box->halfExtents.y, -box->halfExtents.z),
+            Vector3(box->halfExtents.x, -box->halfExtents.y, -box->halfExtents.z),
+            Vector3(-box->halfExtents.x, -box->halfExtents.y, -box->halfExtents.z)
+        };
 
-        float bottomY = boxBody->position.y - box->halfExtents.y;
+        float lowestY = 100000.0f;
+        Vector3 lowestPoint;
 
-        if (bottomY < planeY)
+        for(int i=0; i<8; i++) {
+            Quaternion q = boxBody->orientation;
+            Vector3 v = corners[i];
+            
+            float x = q.x, y = q.y, z = q.z, w = q.w;
+            float x2 = x+x, y2 = y+y, z2 = z+z;
+            float xx = x*x2, xy = x*y2, xz = x*z2;
+            float yy = y*y2, yz = y*z2, zz = z*z2;
+            float wx = w*x2, wy = w*y2, wz = w*z2;
+
+            Vector3 rotated;
+            rotated.x = (1.0f - (yy + zz)) * v.x + (xy - wz) * v.y + (xz + wy) * v.z;
+            rotated.y = (xy + wz) * v.x + (1.0f - (xx + zz)) * v.y + (yz - wx) * v.z;
+            rotated.z = (xz - wy) * v.x + (yz + wx) * v.y + (1.0f - (xx + yy)) * v.z;
+
+            Vector3 worldPos = boxBody->position + rotated;
+
+            if (worldPos.y < lowestY) {
+                lowestY = worldPos.y;
+                lowestPoint = worldPos;
+            }
+        }
+
+        if (lowestY < planeY)
         {
             contact.a = boxBody;
             contact.b = nullptr;
             contact.normal = Vector3(0, 1, 0);
-            contact.penetration = planeY - bottomY;
-            contact.point = boxBody->position - Vector3(0, box->halfExtents.y, 0);
+            contact.penetration = planeY - lowestY;
+            contact.point = lowestPoint; 
             return true;
         }
         return false;

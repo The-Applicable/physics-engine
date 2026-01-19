@@ -113,5 +113,27 @@ public:
                     (bodyB->inverseInertiaTensorWorld * rB.cross(frictionImpulse));
             }
         }
+
+        const float percent = 0.8f;
+        const float slop = 0.01f;
+
+        float linearInvMassSum = bodyA->inverseMass;
+        if (bodyB)
+        {
+            linearInvMassSum += bodyB->inverseMass;
+        }
+
+        if (linearInvMassSum)
+        {
+            float correctionMag =
+                std::max(contact.penetration - slop, 0.0f) / linearInvMassSum * percent;
+
+            Vector3 correction = contact.normal * correctionMag;
+            bodyA->position += correction * bodyA->inverseMass;
+            if (bodyB)
+            {
+                bodyB->position = bodyB->position - correction * bodyB->inverseMass;
+            }
+        }
     }
 };

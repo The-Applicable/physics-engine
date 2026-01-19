@@ -21,7 +21,7 @@ public:
     Quaternion orientation;
     Vector3 angularVelocity;
     Vector3 torqueAccum;
-    float angularDamping = 0.98f;
+    float angularDamping = 0.50f;
     Matrix3 inverseInertiaTensor;
     Matrix3 inverseInertiaTensorWorld;
 
