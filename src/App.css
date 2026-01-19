@@ -159,6 +159,11 @@ hr {
   background: #333;
 }
 
+.spawn-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
 .row-btns {
   display: grid;
   grid-template-columns: 1fr 1fr;
