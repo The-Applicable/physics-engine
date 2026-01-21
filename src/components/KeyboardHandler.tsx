@@ -55,24 +55,19 @@ export const KeyboardHandler = ({
         // Up/Down
         // eslint-disable-next-line
         if (keys.current.has('Space')) camera.position.y += moveSpeed;
-        // eslint-disable-next-line
         if (keys.current.has('ShiftLeft') || keys.current.has('ShiftRight')) camera.position.y -= moveSpeed;
 
         // Look (Arrow Keys)
         if (keys.current.has('ArrowLeft')) {
-             // eslint-disable-next-line
              camera.rotation.y += lookSpeed;
         }
         if (keys.current.has('ArrowRight')) {
-             // eslint-disable-next-line
              camera.rotation.y -= lookSpeed;
         }
         if (keys.current.has('ArrowUp')) {
-             // eslint-disable-next-line
              camera.rotation.x += lookSpeed;
         }
         if (keys.current.has('ArrowDown')) {
-             // eslint-disable-next-line
              camera.rotation.x -= lookSpeed;
         }
         
