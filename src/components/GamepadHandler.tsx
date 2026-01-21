@@ -20,7 +20,7 @@ export const GamepadHandler = ({
     const callbacks = useRef({ onSpawn, onToggleShape });
     callbacks.current = { onSpawn, onToggleShape };
 
-    useFrame((state, delta) => {
+    useFrame((_state, delta) => {
         const gamepads = navigator.getGamepads();
         const gp = gamepads[0];
 
@@ -66,7 +66,6 @@ export const GamepadHandler = ({
 
         // eslint-disable-next-line
         camera.rotation.y -= rx * lookSpeed;
-        // eslint-disable-next-line
         camera.rotation.x -= ry * lookSpeed;
         camera.rotation.x = Math.max(-1.5, Math.min(1.5, camera.rotation.x));
         
