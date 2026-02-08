@@ -22,6 +22,9 @@ function App() {
   const [debugMode, setDebugMode] = useState(false);
   const [selectedShape, setSelectedShape] = useState<ShapeType>('box');
   const [inputMode, setInputMode] = useState<InputMode>('keyboard');
+  const [skyColor, setSkyColor] = useState('#534d4d');
+  const [planeColor, setPlaneColor] = useState('#1a1a1a');
+  const [gridColor, setGridColor] = useState('#333333');
 
   const physicsSceneRef = useRef<PhysicsSceneRef>(null);
 
@@ -54,7 +57,7 @@ function App() {
     <div className="app-layout">
       <div className="viewport">
           <Canvas shadows camera={{ position: [8, 5, 8], fov: 50 }}>
-            <color attach="background" args={['#534d4d']} /> 
+            <color attach="background" args={[skyColor]} /> 
             
             <ambientLight intensity={0.5} />
             <spotLight position={[10, 20, 10]} angle={0.3} penumbra={1} castShadow shadow-mapSize={[2048, 2048]} />
@@ -74,6 +77,8 @@ function App() {
                     selectedTexture={selectedTexture}
                     onToggleShape={toggleShape}
                     physicsModule={physicsModule}
+                    planeColor={planeColor}
+                    gridColor={gridColor}
                 />
             </Suspense>
           </Canvas>
@@ -104,6 +109,9 @@ function App() {
           selectedTexture={selectedTexture} setSelectedTexture={setSelectedTexture}
           selectedShape={selectedShape} setSelectedShape={setSelectedShape}
           inputMode={inputMode} setInputMode={setInputMode}
+          skyColor={skyColor} setSkyColor={setSkyColor}
+          planeColor={planeColor} setPlaneColor={setPlaneColor}
+          gridColor={gridColor} setGridColor={setGridColor}
           onSpawn={handleSpawn}
           onClear={() => setObjects([])}
       />

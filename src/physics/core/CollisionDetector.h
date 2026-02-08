@@ -3,6 +3,7 @@
 #include "../geometry/Cylinder.h"
 #include "../geometry/Sphere.h"
 #include "Contact.h"
+#include "math.h"
 
 class CollisionDetector
 {
@@ -54,41 +55,30 @@ public:
             Vector3(box->halfExtents.x, -box->halfExtents.y, -box->halfExtents.z),
             Vector3(-box->halfExtents.x, -box->halfExtents.y, -box->halfExtents.z)};
 
-        float lowestY = 100000.0f;
-        Vector3 lowestPoint;
+        float maxPenetration = 0;
+        Vector3 avgPoint(0, 0, 0);
+        int contactCount = 0;
 
         for (int i = 0; i < 8; i++)
         {
-            Quaternion q = boxBody->orientation;
-            Vector3 v = corners[i];
+            Vector3 worldPos = boxBody->position + boxBody->orientation.rotate(corners[i]);
 
-            float x = q.x, y = q.y, z = q.z, w = q.w;
-            float x2 = x + x, y2 = y + y, z2 = z + z;
-            float xx = x * x2, xy = x * y2, xz = x * z2;
-            float yy = y * y2, yz = y * z2, zz = z * z2;
-            float wx = w * x2, wy = w * y2, wz = w * z2;
-
-            Vector3 rotated;
-            rotated.x = (1.0f - (yy + zz)) * v.x + (xy - wz) * v.y + (xz + wy) * v.z;
-            rotated.y = (xy + wz) * v.x + (1.0f - (xx + zz)) * v.y + (yz - wx) * v.z;
-            rotated.z = (xz - wy) * v.x + (yz + wx) * v.y + (1.0f - (xx + yy)) * v.z;
-
-            Vector3 worldPos = boxBody->position + rotated;
-
-            if (worldPos.y < lowestY)
+            if (worldPos.y < planeY)
             {
-                lowestY = worldPos.y;
-                lowestPoint = worldPos;
+                float pen = planeY - worldPos.y;
+                if (pen > maxPenetration) maxPenetration = pen;
+                avgPoint += worldPos;
+                contactCount++;
             }
         }
 
-        if (lowestY < planeY)
+        if (contactCount > 0)
         {
             contact.a = boxBody;
             contact.b = nullptr;
             contact.normal = Vector3(0, 1, 0);
-            contact.penetration = planeY - lowestY;
-            contact.point = lowestPoint;
+            contact.penetration = maxPenetration;
+            contact.point = avgPoint * (1.0f / contactCount);
             return true;
         }
         return false;
@@ -214,42 +204,65 @@ public:
     {
         Cylinder* cylinder = (Cylinder*)cylBody->shape;
 
-        std::vector<Vector3> rimPoints;
-        float angleStep = (3.14159f * 2.0f) / 8.0f;
+        const int segments = 16;
+        float angleStep = (3.14159f * 2.0f) / segments;
 
-        for (int i = 0; i < 8; i++)
+        float maxPenetration = 0;
+        Vector3 avgPoint(0, 0, 0);
+        int contactCount = 0;
+
+        for (int i = 0; i < segments; i++)
         {
             float theta = i * angleStep;
             float x = cylinder->radius * std::cos(theta);
             float z = cylinder->radius * std::sin(theta);
 
-            rimPoints.push_back(Vector3(x, -cylinder->halfHeight, z));
-            rimPoints.push_back(Vector3(x, cylinder->halfHeight, z));
-        }
-
-        float lowestY = 100000.0f;
-        Vector3 lowestPoint;
-        bool collided = false;
-
-        for (const auto& p : rimPoints)
-        {
-            Vector3 worldPt = cylBody->orientation.rotate(p);
-            worldPt += cylBody->position;
-
-            if (worldPt.y < lowestY)
+            // Bottom rim
+            Vector3 worldBottom = cylBody->position + cylBody->orientation.rotate(Vector3(x, -cylinder->halfHeight, z));
+            if (worldBottom.y < planeY)
             {
-                lowestY = worldPt.y;
-                lowestPoint = worldPt;
+                float pen = planeY - worldBottom.y;
+                if (pen > maxPenetration) maxPenetration = pen;
+                avgPoint += worldBottom;
+                contactCount++;
+            }
+
+            // Top rim
+            Vector3 worldTop = cylBody->position + cylBody->orientation.rotate(Vector3(x, cylinder->halfHeight, z));
+            if (worldTop.y < planeY)
+            {
+                float pen = planeY - worldTop.y;
+                if (pen > maxPenetration) maxPenetration = pen;
+                avgPoint += worldTop;
+                contactCount++;
             }
         }
 
-        if (lowestY < planeY)
+        // Cap centers
+        Vector3 worldCenterBottom = cylBody->position + cylBody->orientation.rotate(Vector3(0, -cylinder->halfHeight, 0));
+        if (worldCenterBottom.y < planeY)
+        {
+            float pen = planeY - worldCenterBottom.y;
+            if (pen > maxPenetration) maxPenetration = pen;
+            avgPoint += worldCenterBottom;
+            contactCount++;
+        }
+        Vector3 worldCenterTop = cylBody->position + cylBody->orientation.rotate(Vector3(0, cylinder->halfHeight, 0));
+        if (worldCenterTop.y < planeY)
+        {
+            float pen = planeY - worldCenterTop.y;
+            if (pen > maxPenetration) maxPenetration = pen;
+            avgPoint += worldCenterTop;
+            contactCount++;
+        }
+
+        if (contactCount > 0)
         {
             contact.a = cylBody;
             contact.b = nullptr;
             contact.normal = Vector3(0, 1, 0);
-            contact.penetration = planeY - lowestY;
-            contact.point = lowestPoint;
+            contact.penetration = maxPenetration;
+            contact.point = avgPoint * (1.0f / contactCount);
             return true;
         }
         return false;
@@ -263,7 +276,7 @@ public:
 
     static void generateCylinderPoints(Cylinder* cylinder, std::vector<Vector3>& outPoints)
     {
-        int segments = 0;
+        int segments = 16;
         float step = 6.28318f / segments;
         for (int i = 0; i < segments; i++)
         {
@@ -274,6 +287,9 @@ public:
             outPoints.push_back(Vector3(x, cylinder->halfHeight, z));
             outPoints.push_back(Vector3(x, -cylinder->halfHeight, z));
         }
+        // Cap centers
+        outPoints.push_back(Vector3(0, cylinder->halfHeight, 0));
+        outPoints.push_back(Vector3(0, -cylinder->halfHeight, 0));
     }
 
     static bool checkSphereCylinder(RigidBody* sphereBody, RigidBody* cylBody, Contact& contact)
@@ -407,7 +423,7 @@ public:
             contact.a = cylBody;
             contact.b = boxBody;
             contact.penetration = deepestPenetration;
-            contact.normal = collisionNormal * -1.0f;
+            contact.normal = collisionNormal;
             contact.point = collisionPoint;
             return true;
         }
@@ -424,39 +440,79 @@ public:
         Vector3 collisionNormal;
         bool hit = false;
 
-        std::vector<Vector3> ptsA;
-        generateCylinderPoints(cylA, ptsA);
-        for (auto& lp : ptsA)
+        // Test A's points against B (normal from B toward A = correct convention)
         {
-            Vector3 wp = toWorld(a, lp);
-            Vector3 localB = toLocal(b, wp);
-
-            if (std::abs(localB.y) < cylB->halfHeight)
+            std::vector<Vector3> ptsA;
+            generateCylinderPoints(cylA, ptsA);
+            for (auto& lp : ptsA)
             {
-                float distSq = localB.x * localB.x + localB.z * localB.z;
-                if (distSq < cylB->radius * cylB->radius)
+                Vector3 wp = toWorld(a, lp);
+                Vector3 localB = toLocal(b, wp);
+
+                if (std::abs(localB.y) < cylB->halfHeight)
                 {
-                    float dist = std::sqrt(distSq);
-                    float penR = cylB->radius - dist;
-                    float penY = cylB->halfHeight - std::abs(localB.y);
-
-                    float pen = std::min(penR, penY);
-                    if (pen > deepestPenetration)
+                    float distSq = localB.x * localB.x + localB.z * localB.z;
+                    if (distSq < cylB->radius * cylB->radius)
                     {
-                        deepestPenetration = pen;
-                        collisionPoint = wp;
+                        float dist = std::sqrt(distSq);
+                        float penR = cylB->radius - dist;
+                        float penY = cylB->halfHeight - std::abs(localB.y);
+                        float pen = std::min(penR, penY);
+                        if (pen > deepestPenetration)
+                        {
+                            deepestPenetration = pen;
+                            collisionPoint = wp;
+                            if (pen == penY)
+                            {
+                                Vector3 ln(0, (localB.y > 0) ? 1.0f : -1.0f, 0);
+                                collisionNormal = b->orientation.rotate(ln);
+                            }
+                            else if (dist > 0.0001f)
+                            {
+                                Vector3 ln = Vector3(localB.x, 0, localB.z) * (1.0f / dist);
+                                collisionNormal = b->orientation.rotate(ln);
+                            }
+                            hit = true;
+                        }
+                    }
+                }
+            }
+        }
 
-                        if (pen == penY)
+        // Test B's points against A (normal from A toward B, negate for B->A convention)
+        {
+            std::vector<Vector3> ptsB;
+            generateCylinderPoints(cylB, ptsB);
+            for (auto& lp : ptsB)
+            {
+                Vector3 wp = toWorld(b, lp);
+                Vector3 localA = toLocal(a, wp);
+
+                if (std::abs(localA.y) < cylA->halfHeight)
+                {
+                    float distSq = localA.x * localA.x + localA.z * localA.z;
+                    if (distSq < cylA->radius * cylA->radius)
+                    {
+                        float dist = std::sqrt(distSq);
+                        float penR = cylA->radius - dist;
+                        float penY = cylA->halfHeight - std::abs(localA.y);
+                        float pen = std::min(penR, penY);
+                        if (pen > deepestPenetration)
                         {
-                            Vector3 ln = Vector3(0, (localB.y > 0) ? 1 : -1, 0);
-                            collisionNormal = b->orientation.rotate(ln);
+                            deepestPenetration = pen;
+                            collisionPoint = wp;
+                            if (pen == penY)
+                            {
+                                Vector3 ln(0, (localA.y > 0) ? -1.0f : 1.0f, 0);
+                                collisionNormal = a->orientation.rotate(ln);
+                            }
+                            else if (dist > 0.0001f)
+                            {
+                                Vector3 ln = Vector3(localA.x, 0, localA.z) * (-1.0f / dist);
+                                collisionNormal = a->orientation.rotate(ln);
+                            }
+                            hit = true;
                         }
-                        else
-                        {
-                            Vector3 ln = Vector3(localB.x, 0, localB.z) * (1.0f / dist);
-                            collisionNormal = b->orientation.rotate(ln);
-                        }
-                        hit = true;
                     }
                 }
             }
@@ -467,7 +523,7 @@ public:
             contact.a = a;
             contact.b = b;
             contact.penetration = deepestPenetration;
-            contact.normal = collisionNormal * -1.0f;
+            contact.normal = collisionNormal;
             contact.point = collisionPoint;
             return true;
         }

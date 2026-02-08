@@ -19,6 +19,8 @@ interface PhysicsSceneProps {
     selectedTexture: TextureType;
     onToggleShape: () => void;
     physicsModule: PhysicsModule | null;
+    planeColor: string;
+    gridColor: string;
 }
 
 export interface PhysicsSceneRef {
@@ -36,7 +38,9 @@ export const PhysicsScene = forwardRef<PhysicsSceneRef, PhysicsSceneProps>(({
     selectedShape,
     selectedTexture,
     onToggleShape,
-    physicsModule
+    physicsModule,
+    planeColor,
+    gridColor
 }, ref) => {
     const { camera } = useThree();
     const worldRef = useRef<PhysicsWorldInstance | null>(null);
@@ -185,7 +189,7 @@ export const PhysicsScene = forwardRef<PhysicsSceneRef, PhysicsSceneProps>(({
 
             {/* Shadow-receiving infinite floor */}
             <Plane args={[50000, 50000]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow position={[0, -0.01, 0]}>
-                <meshStandardMaterial color="#1a1a1a" roughness={0.8} />
+                <meshStandardMaterial color={planeColor} roughness={0.8} />
             </Plane>
             
             {/* Infinite Grid using drei component */}
@@ -196,8 +200,8 @@ export const PhysicsScene = forwardRef<PhysicsSceneRef, PhysicsSceneProps>(({
                 sectionSize={5} 
                 infiniteGrid 
                 fadeDistance={100} 
-                sectionColor="#555555" 
-                cellColor="#333333" 
+                sectionColor={gridColor} 
+                cellColor={gridColor} 
             />
         </>
     );

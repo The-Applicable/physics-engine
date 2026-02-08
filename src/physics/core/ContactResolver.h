@@ -129,7 +129,7 @@ public:
             }
         }
 
-        const float percent = 0.2f;
+        const float percent = 0.4f;
         const float slop = 0.01f;
 
         float linearInvMassSum = bodyA->inverseMass;
@@ -142,6 +142,7 @@ public:
         {
             float correctionMag =
                 std::max(contact.penetration - slop, 0.0f) / linearInvMassSum * percent;
+            correctionMag = std::min(correctionMag, 0.2f);
 
             Vector3 correction = contact.normal * correctionMag;
             bodyA->position += correction * bodyA->inverseMass;
