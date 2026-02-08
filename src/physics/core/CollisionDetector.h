@@ -66,7 +66,8 @@ public:
             if (worldPos.y < planeY)
             {
                 float pen = planeY - worldPos.y;
-                if (pen > maxPenetration) maxPenetration = pen;
+                if (pen > maxPenetration)
+                    maxPenetration = pen;
                 avgPoint += worldPos;
                 contactCount++;
             }
@@ -218,40 +219,48 @@ public:
             float z = cylinder->radius * std::sin(theta);
 
             // Bottom rim
-            Vector3 worldBottom = cylBody->position + cylBody->orientation.rotate(Vector3(x, -cylinder->halfHeight, z));
+            Vector3 worldBottom = cylBody->position +
+                                  cylBody->orientation.rotate(Vector3(x, -cylinder->halfHeight, z));
             if (worldBottom.y < planeY)
             {
                 float pen = planeY - worldBottom.y;
-                if (pen > maxPenetration) maxPenetration = pen;
+                if (pen > maxPenetration)
+                    maxPenetration = pen;
                 avgPoint += worldBottom;
                 contactCount++;
             }
 
             // Top rim
-            Vector3 worldTop = cylBody->position + cylBody->orientation.rotate(Vector3(x, cylinder->halfHeight, z));
+            Vector3 worldTop = cylBody->position +
+                               cylBody->orientation.rotate(Vector3(x, cylinder->halfHeight, z));
             if (worldTop.y < planeY)
             {
                 float pen = planeY - worldTop.y;
-                if (pen > maxPenetration) maxPenetration = pen;
+                if (pen > maxPenetration)
+                    maxPenetration = pen;
                 avgPoint += worldTop;
                 contactCount++;
             }
         }
 
         // Cap centers
-        Vector3 worldCenterBottom = cylBody->position + cylBody->orientation.rotate(Vector3(0, -cylinder->halfHeight, 0));
+        Vector3 worldCenterBottom =
+            cylBody->position + cylBody->orientation.rotate(Vector3(0, -cylinder->halfHeight, 0));
         if (worldCenterBottom.y < planeY)
         {
             float pen = planeY - worldCenterBottom.y;
-            if (pen > maxPenetration) maxPenetration = pen;
+            if (pen > maxPenetration)
+                maxPenetration = pen;
             avgPoint += worldCenterBottom;
             contactCount++;
         }
-        Vector3 worldCenterTop = cylBody->position + cylBody->orientation.rotate(Vector3(0, cylinder->halfHeight, 0));
+        Vector3 worldCenterTop =
+            cylBody->position + cylBody->orientation.rotate(Vector3(0, cylinder->halfHeight, 0));
         if (worldCenterTop.y < planeY)
         {
             float pen = planeY - worldCenterTop.y;
-            if (pen > maxPenetration) maxPenetration = pen;
+            if (pen > maxPenetration)
+                maxPenetration = pen;
             avgPoint += worldCenterTop;
             contactCount++;
         }
@@ -267,7 +276,6 @@ public:
         }
         return false;
     }
-
 
     static Vector3 radiusAtAngle(float angle, float radius)
     {

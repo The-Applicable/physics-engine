@@ -69,7 +69,8 @@ public:
         // Sleep management (once per frame)
         for (auto body : bodies)
         {
-            if (!body->hasFiniteMass()) continue;
+            if (!body->hasFiniteMass())
+                continue;
             if (body->isAwake)
             {
                 float currentMotion = body->velocity.dot(body->velocity) +
@@ -88,91 +89,92 @@ public:
 
         for (int sub = 0; sub < substeps; sub++)
         {
-        updateInertiaTensors();
-        for (auto body : bodies)
-        {
-            if (!body->hasFiniteMass() || !body->isAwake) continue;
-            body->velocity += gravity * subDt;
-            body->integrate(subDt);
-        }
-
-        for (auto body : bodies)
-        {
-            Contact contact;
-            bool hitFloor = false;
-
-            if (body->shape->type == SPHERE)
+            updateInertiaTensors();
+            for (auto body : bodies)
             {
-                hitFloor = CollisionDetector::checkSpherePlane(body, 0.0f, contact);
-            }
-            else if (body->shape->type == BOX)
-            {
-                hitFloor = CollisionDetector::checkBoxPlane(body, 0.0f, contact);
-            }
-            else if (body->shape->type == CYLINDER)
-            {
-                hitFloor = CollisionDetector::checkCylinderPlane(body, 0.0f, contact);
+                if (!body->hasFiniteMass() || !body->isAwake)
+                    continue;
+                body->velocity += gravity * subDt;
+                body->integrate(subDt);
             }
 
-            if (hitFloor)
+            for (auto body : bodies)
             {
-                ContactResolver::resolve(contact);
-            }
-        }
-
-        for (size_t i = 0; i < bodies.size(); i++)
-        {
-            for (size_t j = i + 1; j < bodies.size(); j++)
-            {
-                RigidBody* bodyA = bodies[i];
-                RigidBody* bodyB = bodies[j];
-
                 Contact contact;
-                bool collided = false;
+                bool hitFloor = false;
 
-                if (bodyA->shape->type == SPHERE and bodyB->shape->type == SPHERE)
+                if (body->shape->type == SPHERE)
                 {
-                    collided = CollisionDetector::checkSphereSphere(bodyA, bodyB, contact);
+                    hitFloor = CollisionDetector::checkSpherePlane(body, 0.0f, contact);
                 }
-                else if (bodyA->shape->type == BOX and bodyB->shape->type == BOX)
+                else if (body->shape->type == BOX)
                 {
-                    collided = CollisionDetector::checkBoxBox(bodyA, bodyB, contact);
+                    hitFloor = CollisionDetector::checkBoxPlane(body, 0.0f, contact);
                 }
-                else if (bodyA->shape->type == BOX and bodyB->shape->type == SPHERE)
+                else if (body->shape->type == CYLINDER)
                 {
-                    collided = CollisionDetector::checkBoxSphere(bodyA, bodyB, contact);
-                }
-                else if (bodyA->shape->type == SPHERE and bodyB->shape->type == BOX)
-                {
-                    collided = CollisionDetector::checkSphereBox(bodyA, bodyB, contact);
-                }
-                else if (bodyA->shape->type == SPHERE and bodyB->shape->type == CYLINDER)
-                {
-                    collided = CollisionDetector::checkSphereCylinder(bodyA, bodyB, contact);
-                }
-                else if (bodyA->shape->type == CYLINDER and bodyB->shape->type == SPHERE)
-                {
-                    collided = CollisionDetector::checkSphereCylinder(bodyB, bodyA, contact);
-                }
-                else if (bodyA->shape->type == CYLINDER and bodyB->shape->type == BOX)
-                {
-                    collided = CollisionDetector::checkCylinderBox(bodyA, bodyB, contact);
-                }
-                else if (bodyA->shape->type == BOX and bodyB->shape->type == CYLINDER)
-                {
-                    collided = CollisionDetector::checkCylinderBox(bodyB, bodyA, contact);
-                }
-                else if (bodyA->shape->type == CYLINDER and bodyB->shape->type == CYLINDER)
-                {
-                    collided = CollisionDetector::checkCylinderCylinder(bodyA, bodyB, contact);
+                    hitFloor = CollisionDetector::checkCylinderPlane(body, 0.0f, contact);
                 }
 
-                if (collided)
+                if (hitFloor)
                 {
                     ContactResolver::resolve(contact);
                 }
             }
-        }
+
+            for (size_t i = 0; i < bodies.size(); i++)
+            {
+                for (size_t j = i + 1; j < bodies.size(); j++)
+                {
+                    RigidBody* bodyA = bodies[i];
+                    RigidBody* bodyB = bodies[j];
+
+                    Contact contact;
+                    bool collided = false;
+
+                    if (bodyA->shape->type == SPHERE and bodyB->shape->type == SPHERE)
+                    {
+                        collided = CollisionDetector::checkSphereSphere(bodyA, bodyB, contact);
+                    }
+                    else if (bodyA->shape->type == BOX and bodyB->shape->type == BOX)
+                    {
+                        collided = CollisionDetector::checkBoxBox(bodyA, bodyB, contact);
+                    }
+                    else if (bodyA->shape->type == BOX and bodyB->shape->type == SPHERE)
+                    {
+                        collided = CollisionDetector::checkBoxSphere(bodyA, bodyB, contact);
+                    }
+                    else if (bodyA->shape->type == SPHERE and bodyB->shape->type == BOX)
+                    {
+                        collided = CollisionDetector::checkSphereBox(bodyA, bodyB, contact);
+                    }
+                    else if (bodyA->shape->type == SPHERE and bodyB->shape->type == CYLINDER)
+                    {
+                        collided = CollisionDetector::checkSphereCylinder(bodyA, bodyB, contact);
+                    }
+                    else if (bodyA->shape->type == CYLINDER and bodyB->shape->type == SPHERE)
+                    {
+                        collided = CollisionDetector::checkSphereCylinder(bodyB, bodyA, contact);
+                    }
+                    else if (bodyA->shape->type == CYLINDER and bodyB->shape->type == BOX)
+                    {
+                        collided = CollisionDetector::checkCylinderBox(bodyA, bodyB, contact);
+                    }
+                    else if (bodyA->shape->type == BOX and bodyB->shape->type == CYLINDER)
+                    {
+                        collided = CollisionDetector::checkCylinderBox(bodyB, bodyA, contact);
+                    }
+                    else if (bodyA->shape->type == CYLINDER and bodyB->shape->type == CYLINDER)
+                    {
+                        collided = CollisionDetector::checkCylinderCylinder(bodyA, bodyB, contact);
+                    }
+
+                    if (collided)
+                    {
+                        ContactResolver::resolve(contact);
+                    }
+                }
+            }
         } // end substep loop
     }
 
