@@ -11,14 +11,17 @@ public:
         RigidBody* bodyA = contact.a;
         RigidBody* bodyB = contact.b;
 
-        if (!bodyA->isAwake && (!bodyB || !bodyB->isAwake)) {
+        if (!bodyA->isAwake && (!bodyB || !bodyB->isAwake))
+        {
             return;
         }
 
-        if (bodyA->hasFiniteMass() && !bodyA->isAwake) {
+        if (bodyA->hasFiniteMass() && !bodyA->isAwake)
+        {
             bodyA->setAwake(true);
         }
-        if (bodyB && bodyB->hasFiniteMass() && !bodyB->isAwake) {
+        if (bodyB && bodyB->hasFiniteMass() && !bodyB->isAwake)
+        {
             bodyB->setAwake(true);
         }
 
@@ -60,7 +63,8 @@ public:
         if (bodyB)
             e = std::min(e, bodyB->restitution);
 
-        if (velocityAlongNormal > -2.0f) { 
+        if (velocityAlongNormal > -2.0f)
+        {
             e = 0.0f;
         }
         float jn = -(1 + e) * velocityAlongNormal;
@@ -129,7 +133,7 @@ public:
             }
         }
 
-        const float percent = 0.8f;
+        const float percent = 0.4f;
         const float slop = 0.01f;
 
         float linearInvMassSum = bodyA->inverseMass;
@@ -142,6 +146,7 @@ public:
         {
             float correctionMag =
                 std::max(contact.penetration - slop, 0.0f) / linearInvMassSum * percent;
+            correctionMag = std::min(correctionMag, 0.2f);
 
             Vector3 correction = contact.normal * correctionMag;
             bodyA->position += correction * bodyA->inverseMass;

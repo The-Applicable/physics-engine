@@ -59,25 +59,129 @@ body, html {
   background: var(--bg-panel);
   backdrop-filter: blur(10px);
   border-left: 1px solid var(--border);
-  padding: 24px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 15px;
   z-index: 10;
   box-shadow: -4px 0 20px rgba(0,0,0,0.3);
+  transition: width 0.3s ease, padding 0.3s ease;
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.sidebar.minimized {
+  width: 56px;
+  padding: 12px;
+  align-items: center;
+  overflow: hidden;
+}
+
+.sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.sidebar.minimized .sidebar-header {
+  justify-content: center;
 }
 
 .sidebar-header h2 {
   margin: 0;
-  font-size: 1.4rem;
+  font-size: 1.1rem;
   font-weight: 700;
-  letter-spacing: -0.5px;
+  white-space: nowrap;
 }
 
-.sidebar-header p {
-  margin: 4px 0 0;
+.minimize-btn {
+  background: transparent;
+  border: 1px solid var(--border);
   color: var(--text-muted);
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.minimize-btn:hover {
+  background: rgba(255,255,255,0.1);
+  color: var(--text-main);
+}
+
+.sidebar-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  opacity: 1;
+}
+
+.section-title {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  margin: 4px 0 0 0;
+  font-weight: 600;
+}
+
+.color-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.color-row label {
   font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.color-row input[type=color] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 44px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  padding: 2px;
+}
+
+.color-row input[type=color]::-webkit-color-swatch-wrapper {
+  padding: 1px;
+}
+
+.color-row input[type=color]::-webkit-color-swatch {
+  border: none;
+  border-radius: 4px;
+}
+
+.overlay-info {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  background: rgba(0,0,0,0.55);
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+  backdrop-filter: blur(4px);
+  pointer-events: none;
+  max-width: 420px;
 }
 
 /* Controls */
@@ -140,19 +244,26 @@ hr {
   gap: 10px;
 }
 
+.spawn-row {
+  display: flex;
+  gap: 8px;
+}
+
 .spawn-btn {
   background: #2a2a2a;
   border: 1px solid #333;
   color: white;
-  padding: 12px;
-  border-radius: 8px;
-  font-weight: 600;
+  padding: 10px;
+  border-radius: 6px;
+  font-weight: 500;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 6px;
   transition: background 0.2s;
+  font-size: 0.9rem;
+  flex: 1;
 }
 
 .spawn-btn:hover {
@@ -176,15 +287,23 @@ hr {
   border: none;
   font-weight: 600;
   cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.toggle-btn:active, .clear-btn:active {
+  transform: scale(0.97);
 }
 
 .toggle-btn {
-  background: var(--accent);
+  background: #2a2a2a;
   color: white;
+  border: 1px solid var(--border);
 }
 
 .toggle-btn.active {
-  background: #e6a23c; /* Orange for pause */
+  background: var(--accent);
+  border-color: var(--accent);
 }
 
 .clear-btn {
@@ -253,4 +372,62 @@ hr {
     height: 30px;
     background: #555;
     margin: 0 10px;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .app-layout {
+    flex-direction: column;
+  }
+  
+  .viewport {
+    height: 55vh;
+    flex-grow: 0;
+  }
+  
+  .sidebar {
+    width: 100% !important;
+    height: 45vh;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    padding: 16px;
+    box-sizing: border-box;
+  }
+
+  .sidebar.minimized {
+    height: 48px;
+    width: 100% !important;
+    flex-direction: row;
+    padding: 0 16px;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .sidebar.minimized .sidebar-header {
+      width: 100%;
+      margin: 0;
+      flex-direction: row;
+      justify-content: space-between;
+  }
+  
+  .sidebar-header h2 {
+      font-size: 1rem;
+  }
+
+  .overlay-info {
+    bottom: 8px;
+    left: 8px;
+    font-size: 0.65rem;
+    padding: 6px 10px;
+    max-width: 90vw;
+  }
+
+  .spawn-row {
+    flex-wrap: wrap;
+  }
+
+  .spawn-btn {
+    font-size: 0.8rem;
+    padding: 8px;
+  }
 }
