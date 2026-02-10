@@ -1,4 +1,5 @@
 #include "core/CollisionDetector.h"
+#include "core/Constraint.h"
 #include "core/ContactResolver.h"
 #include "core/RigidBody.h"
 #include "core/Vector3.h"
@@ -14,6 +15,7 @@ class PhysicsWorld
 {
     std::vector<RigidBody*> bodies;
     Vector3 gravity = Vector3(0, -9.81f, 0);
+    std::vector<Constraint*> constraints;
 
 public:
     PhysicsWorld() {}
@@ -120,6 +122,12 @@ public:
                 {
                     ContactResolver::resolve(contact);
                 }
+            }
+
+            for (int i = 0; i < 5; i++)
+            {
+                for (auto c : constraints)
+                    c->resolve();
             }
 
             for (size_t i = 0; i < bodies.size(); i++)
@@ -247,6 +255,17 @@ public:
         body->restitution = 0.5f;
         bodies.push_back(body);
     }
+
+    void addConstraint(int indexA, int indexB, float length)
+    {
+        if (indexA < 0 || indexA >= bodies.size())
+            return;
+        if (indexB < 0 || indexB >= bodies.size())
+            return;
+        constraints.push_back(new Constraint(bodies[indexA], bodies[indexB], length));
+        bodies[indexA]->setAwake(true);
+        bodies[indexB]->setAwake(true);
+    }
 };
 
 EMSCRIPTEN_BINDINGS(applicable_physics_engine)
@@ -264,5 +283,6 @@ EMSCRIPTEN_BINDINGS(applicable_physics_engine)
         .function("applyForce", &PhysicsWorld::applyForce)
         .function("reset", &PhysicsWorld::reset)
         .function("getBodyCount", &PhysicsWorld::getBodyCount)
-        .function("getBodyPosition", &PhysicsWorld::getBodyPosition);
+        .function("getBodyPosition", &PhysicsWorld::getBodyPosition)
+        .function("addConstraint", &PhysicsWorld::addConstraint);
 }
