@@ -3,6 +3,7 @@
 #include "../geometry/Shape.h"
 #include "../geometry/Sphere.h"
 #include "../geometry/Cylinder.h"
+#include "../geometry/Pyramid.h"
 #include "Matrix3x3.h"
 #include "Quaternion.h"
 #include "Vector3.h"
@@ -103,6 +104,16 @@ public:
 
             float iy = 0.5f * mass * r2;
             float ixz = (1.0f / 12.0f) * mass * (3.0f * r2 + h2);
+
+            it.setDiagonal(ixz, iy, ixz);
+        }
+        else if (shape->type == PYRAMID) {
+            Pyramid *p = (Pyramid*)shape;
+            float w = p->halfWidth * 2.0f;
+            float h = p->height;
+
+            float iy = (3.0f / 20.0f) * mass * w * w;
+            float ixz = mass * ((3.0f / 80.0f) * w * w + (3.0f / 20.0f) * h * h);
 
             it.setDiagonal(ixz, iy, ixz);
         }
