@@ -37,6 +37,16 @@ cd src/physics
 cd ../..
 ```
 
+## Quick Start with Docker
+
+You can build and run the entire application (including the physics engine compilation) with a single command:
+
+```bash
+docker build -t physics-engine . && docker run -p 8080:8080 physics-engine
+```
+
+Then open http://localhost:8080 in your browser.
+
 ## Running the Application
 
 Start the development server:
