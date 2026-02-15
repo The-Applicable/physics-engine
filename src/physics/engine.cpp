@@ -175,6 +175,18 @@ public:
                     else if (bodyA->shape->type == CYLINDER and bodyB->shape->type == CYLINDER)
                     {
                         collided = CollisionDetector::checkCylinderCylinder(bodyA, bodyB, contact);
+                    } 
+                    else if (bodyA->shape->type == PYRAMID and bodyB->shape->type == PYRAMID) 
+                    {
+                        // TODO: check for pp collision 
+                    }
+                    else if (bodyA->shape->type == PYRAMID and bodyA->shape->type == SPHERE)
+                    {
+
+                    }
+                    else if (bodyA->shape->type == PYRAMID and bodyB->shape->type == SPHERE)
+                    {
+                        // TODO: check for pyramid - sphere collision
                     }
 
                     if (collided)

@@ -537,4 +537,124 @@ public:
         }
         return false;
     }
+
+    static void getPyramidVertices(Pyramid* pyramid, std::vector<Vector3>& outPoints)
+    {
+        float h = pyramid->height;
+        // NOTE: The half width goes from center to the edge
+        float w = pyramid->halfWidth;
+
+        float yBase = -0.25f * h;
+        float yTip = 0.75f * h;
+
+        outPoints.push_back(Vector3(0, yTip, 0));
+        outPoints.push_back(Vector3(w, yBase, w));
+        outPoints.push_back(Vector3(-w, yBase, w));
+        outPoints.push_back(Vector3(w, yBase, -w));
+        outPoints.push_back(Vector3(-w, yBase, -w));
+    }
+
+    static bool isThePointInsideOfPyramid(Pyramid* pyramid, const Vector3& localPoint)
+    {
+        float h = pyramid->height;
+
+        float yBase = -0.25f * h;
+        float yTip = 0.75f * h;
+
+        if (localPoint.y < yBase or localPoint.y > yTip)
+        {
+            return false;
+        }
+
+        float alphaVal = (yTip - localPoint.y) / h;
+        float currentLimit = pyramid->halfWidth * alphaVal;
+
+        return (std::abs(localPoint.x) <= currentLimit and std::abs(localPoint.z) <= currentLimit);
+    }
+
+    static bool checkPyramidPlane(RigidBody* body, float plane, Contact& contact)
+    {
+        Pyramid* pyramid = (Pyramid*)body->shape;
+
+        float maxPenetration = 0.0f;
+        Vector3 avgPoint(0, 0, 0);
+        std::vector<Vector3> vertices;
+        getPyramidVertices(pyramid, vertices);
+        int count = 0;
+
+        for (const auto& vertice : vertices)
+        {
+            Vector3 worldPoint = toWorld(body, vertice);
+            if (worldPoint.y < plane)
+            {
+                float penetration = plane - worldPoint.y;
+                if (penetration > maxPenetration)
+                {
+                    maxPenetration = penetration;
+                }
+                avgPoint += worldPoint;
+                count++;
+            }
+        }
+
+        if (count > 0)
+        {
+            contact.a = body;
+            contact.b = nullptr;
+            contact.normal = Vector3(0, 1, 0);
+            contact.penetration = maxPenetration;
+            contact.point = avgPoint * (1.0f / count);
+            return true;
+        }
+        return false;
+    }
+
+    static bool checkPyramidSphere(RigidBody* pyramidBody, RigidBody* sphereBody, Contact& contact)
+    {
+        Pyramid* pyramid = (Pyramid*)pyramidBody->shape;
+        Sphere* sphere = (Sphere*)sphereBody->shape;
+
+        Vector3 localSpace = toLocal(pyramidBody, sphereBody->position);
+
+        float h = pyramid->height;
+        float yBase = -0.25f * h;
+        float yTip = 0.75 * h;
+
+        // NOTE: THE y IS GETTING CLAMPED FIRST
+        float closestY = std::max(yBase, std::min(localSpace.y, yTip));
+
+        float alphaVal = (yTip - localSpace.y) / h;
+        float limit = pyramid->halfWidth * alphaVal;
+
+        // NOTE: The closest clamp x and z co-ordinate
+        float closestX = std::max(-limit, std::min(localSpace.x, limit));
+        float closestZ = std::max(-limit, std::min(localSpace.z, limit));
+
+        Vector3 localClosest(closestX, closestY, closestZ);
+
+        Vector3 worldClosest = toWorld(pyramidBody, localClosest);
+
+        Vector3 diff = sphereBody->position - worldClosest;
+        float dist = diff.magnitude();
+
+        if (dist < sphere->radius and dist > 0)
+        {
+            contact.a = pyramidBody;
+            contact.b = sphereBody;
+            contact.normal = diff * (1.0f / dist);
+            contact.penetration = sphere->radius - dist;
+            contact.point = worldClosest;
+            return true;
+        }
+        return false;
+    }
+
+    // TODO: Continue from here
+    static bool checkPyramidBox(RigidBody* pBody, RigidBody* bBody, Contact& contact) {}
+
+    static bool checkPyramidCylinder() {}
+
+    static bool checkPyramidPyramid() {}
+
+    static bool checkBoxCylinder() {}
 };
