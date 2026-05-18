@@ -373,7 +373,6 @@ public:
         }
         return false;
     }
-
     static bool checkCylinderBox(RigidBody* cylBody, RigidBody* boxBody, Contact& contact)
     {
         Cylinder* cylinder = (Cylinder*)cylBody->shape;
@@ -650,11 +649,85 @@ public:
     }
 
     // TODO: Continue from here
-    static bool checkPyramidBox(RigidBody* pBody, RigidBody* bBody, Contact& contact) {}
+    static bool checkPyramidBox(RigidBody* pBody, RigidBody* bBody, Contact& contact)
+    {
+        Pyramid* p = (Pyramid*)pBody->shape;
+        Box* b = (Box*)bBody->shape;
 
-    static bool checkPyramidCylinder() {}
+        float maxPenetration = -1000.0f;
+        Vector3 contactPoint;
+        Vector3 contactNormal;
+        bool hit = false;
 
-    static bool checkPyramidPyramid() {}
+        std::vector<Vector3> pVerts;
+        getPyramidVertices(p, pVerts);
 
-    static bool checkBoxCylinder() {}
+        for (const auto& pVert : pVerts)
+        {
+            Vector3 worldPoint = toWorld(pBody, pVert);
+            Vector3 boxLocal = toLocal(bBody, worldPoint);
+
+            if (std::abs(boxLocal.x) < b->halfExtents.x and
+                std::abs(boxLocal.y) < b->halfExtents.y and std::abs(boxLocal.z) < b->halfExtents.z)
+            {
+                // TODO: def dx, dy, dz, min d*, WI PEN
+                float dx = boxLocal.x - b->halfExtents.x;
+                float dy = boxLocal.y - b->halfExtents.y;
+                float dz = boxLocal.z - b->halfExtents.z;
+                float penetration = std::min(dx, std::min(dy, dz));
+
+                if (penetration > maxPenetration)
+                {
+                    maxPenetration = penetration;
+                    contactPoint = worldPoint;
+
+                    Vector3 ln;
+                    if (penetration == dx)
+                    {
+                        ln = Vector3(boxLocal.x > 0 ? 1 : -1, 0, 0);
+                    }
+                    else if (penetration == dy)
+                    {
+                        ln = Vector3(0, boxLocal.y > 0 ? 1 : -1, 0);
+                    }
+                    else
+                    {
+                        ln = Vector3(0, 0, boxLocal.z > 0 ? 1 : -1);
+                    }
+
+                    contactNormal = bBody->orientation.rotate(ln);
+                    hit = true;
+                }
+            }
+        }
+
+        for (int i = 0; i < 8; i++)
+        {
+            Vector3 boxCornerLocal((i & 1 ? 1 : -1) * b->halfExtents.x,
+                                   (i & 2 ? 1 : -1) * b->halfExtents.y,
+                                   (i & 4 ? 1 : -1) * b->halfExtents.z);
+
+            Vector3 worldPoint = toWorld(bBody, boxCornerLocal);
+            Vector3 boxLocal = toLocal(bBody, worldPoint);
+
+            // TODO: Continue from here
+
+            if (std::abs(boxLocal.x) < b->halfExtents.x and
+                std::abs(boxLocal.y) < b->halfExtents.y and std::abs(boxLocal.z) < b->halfExtents.z)
+            {
+                float dx = boxLocal.x - b->halfExtents.x;
+                float dy = boxLocal.y - b->halfExtents.y;
+                float dz = boxLocal.z - b->halfExtents.z;
+
+                float penetration = std::min(dx, std::min(dy, dz));
+            }
+        }
+        return false;
+    }
+
+    static bool checkPyramidCylinder() { return false; }
+
+    static bool checkPyramidPyramid() { return false; }
+
+    static bool checkBoxCylinder() { return false; }
 };
